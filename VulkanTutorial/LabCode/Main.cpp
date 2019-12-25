@@ -17,9 +17,9 @@ const std::vector<const char*> validationLayers = {
 };
 
 #ifdef NDEBUG
-	const bool enableValidationLayers = false;
+const bool enableValidationLayers = false;
 #else 
-	const bool enableValidationLayers = true;
+const bool enableValidationLayers = true;
 #endif // NDEBUG
 
 
@@ -29,13 +29,13 @@ VkResult CreateDebugUtilsMessengerEXT(VkInstance instance,
 	const VkAllocationCallbacks* pAllocator_,
 	VkDebugUtilsMessengerEXT* pDebugMessenger_)
 {
-	auto func = (PFN_vkCreateDebugUtilsMessengerEXT) vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT");
+	auto func = (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT");
 	if (func != nullptr) {
 		return func(instance, pCreateInfo_, pAllocator_, pDebugMessenger_);
 	}
 	else {
 		return VK_ERROR_EXTENSION_NOT_PRESENT;
-	}	
+	}
 }
 
 void DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger, const VkAllocationCallbacks* pAllocator) {
@@ -48,7 +48,7 @@ class HelloTriangleApplication {
 public:
 	void run() {
 		initWindow();
-		initVulkan();		
+		initVulkan();
 		mainLoop();
 		cleanup();
 	}
@@ -77,7 +77,7 @@ private:
 		//createLogicalDevice();
 	}
 
-	
+
 	void createInstance() {
 		//Pre check for validation layers support
 		if (enableValidationLayers && !checkValidationLayerSuport()) {
@@ -92,7 +92,7 @@ private:
 		appInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
 		appInfo.pEngineName = "No Engine";
 		appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
-		appInfo.apiVersion = VK_API_VERSION_1_0;		
+		appInfo.apiVersion = VK_API_VERSION_1_0;
 
 		//2.
 		//Struct for vulkan instance info
@@ -105,8 +105,8 @@ private:
 
 		//pass the GLFW extension to Vulkan create info struct
 		createInfo.enabledExtensionCount = static_cast<uint32_t>(extensions.size());
-		createInfo.ppEnabledExtensionNames = extensions.data();		
-		
+		createInfo.ppEnabledExtensionNames = extensions.data();
+
 		//Debug messenger to debug insance creation and destruction
 		VkDebugUtilsMessengerCreateInfoEXT debugCreateInfo;
 
@@ -116,13 +116,13 @@ private:
 			createInfo.ppEnabledLayerNames = validationLayers.data();
 
 			populateDebugMessengerCreateInfo(debugCreateInfo);
-			createInfo.pNext = (VkDebugUtilsMessengerCreateInfoEXT*) &debugCreateInfo;			
+			createInfo.pNext = (VkDebugUtilsMessengerCreateInfoEXT*)&debugCreateInfo;
 		}
 		else
 		{
 			createInfo.enabledLayerCount = 0;
 		}
-		
+
 
 		//3.
 		//Create Vulkan instance based on application and instance info
@@ -130,7 +130,7 @@ private:
 			throw std::runtime_error("failed to create Vulkan Instance! [::createInstance]");
 		}
 
-		
+
 	}
 
 	void setupDebugMessenger() {
@@ -153,7 +153,7 @@ private:
 		//1. 
 		//Enumerate all devices and select one based on properties and features
 		vkEnumeratePhysicalDevices(m_vkInstance, &deviceCount, nullptr);
-		
+
 		if (deviceCount == 0) {
 			throw std::runtime_error("failed to find GPUs with Vulkan support!");
 		}
@@ -172,7 +172,7 @@ private:
 		if (m_vkPhysicalDevice == VK_NULL_HANDLE) {
 			throw std::runtime_error("failed to find a suitable GPU! [::pickPhysicalDevice]");
 		}
-		
+
 	}
 
 	void createLogicalDevice() {
@@ -201,7 +201,7 @@ private:
 		createInfo.pQueueCreateInfos = &queueCreateInfo;
 		createInfo.queueCreateInfoCount = 1;
 		createInfo.pEnabledFeatures = &deviceFeatures;
-		
+
 		createInfo.enabledExtensionCount = 0;
 		if (enableValidationLayers) {
 			createInfo.enabledLayerCount = static_cast<uint32_t>(validationLayers.size());
@@ -224,7 +224,7 @@ private:
 	void mainLoop() {
 		//Rendering loop, terminates if window is closed
 		while (!glfwWindowShouldClose(m_window)) {
-			
+
 			//Poll input event
 			glfwPollEvents();
 		}
@@ -332,7 +332,7 @@ private:
 		createInfo_.pfnUserCallback = debugCallback;
 		createInfo_.pNext = nullptr;
 		createInfo_.flags = 0;
-	}	
+	}
 
 	static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
 		VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity_,
@@ -352,7 +352,7 @@ private:
 	//////////////////////////////  Functions to Support Pyhsical Device Selection : pickPhysicalDevice()
 	bool isDeviceSuitable(VkPhysicalDevice device) {
 		QueueFamilyIndices indices = findQueueFamilies(device);
-			
+
 		return indices.isComplete();
 	}
 
@@ -365,16 +365,16 @@ private:
 
 	};
 
-	QueueFamilyIndices findQueueFamilies(VkPhysicalDevice device) {		
+	QueueFamilyIndices findQueueFamilies(VkPhysicalDevice device) {
 		QueueFamilyIndices indices;
-		
+
 		// Logic to find graphics queue family
 		uint32_t queueFamilyCount = 0;
 		vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, nullptr);
 
 		std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
 		vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, queueFamilies.data());
-		
+
 		int i = 0;
 		for (const auto& queueFamily : queueFamilies) {
 			if (queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT) {
@@ -401,7 +401,7 @@ private:
 };
 
 int main() {
-	
+
 
 	try {
 		HelloTriangleApplication app;
