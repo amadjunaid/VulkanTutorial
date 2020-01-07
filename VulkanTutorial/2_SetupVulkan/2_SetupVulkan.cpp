@@ -76,8 +76,8 @@ private:
 	void initVulkan() {
 		createInstance();
 		setupDebugMessenger();
-		//pickPhysicalDevice();
-		//createLogicalDevice();
+		pickPhysicalDevice();
+		createLogicalDevice();
 	}
 
 
@@ -234,7 +234,7 @@ private:
 	}
 
 	void cleanup() {
-		//vkDestroyDevice(m_vkLogicalDevice, nullptr);
+		vkDestroyDevice(m_vkLogicalDevice, nullptr);
 		if (enableValidationLayers) {
 			DestroyDebugUtilsMessengerEXT(m_vkInstance, m_vkDebugMessenger, nullptr);
 		}
