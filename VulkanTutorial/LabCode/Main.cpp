@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <optional>
 #include <set>
+#include <cstdint> //Necessary for UINT32_MAX
 
 const int WIDTH = 800;
 const int HEIGHT = 600;
@@ -151,7 +152,7 @@ private:
 
 	}
 
-	void createSurface(){
+	void createSurface() {
 		if (glfwCreateWindowSurface(m_vkInstance, m_window, nullptr, &m_vkSurface) != VK_SUCCESS) {
 			throw std::runtime_error("failed to create window surface! [::createSurface]");
 		}
@@ -193,7 +194,7 @@ private:
 		//2. 
 		//Create struct for Queue creation for the logical device
 		std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
-		float queuePriority = 1.0f;		
+		float queuePriority = 1.0f;
 		for (uint32_t queueFamily : uniqueQueueFamilies) {
 			VkDeviceQueueCreateInfo queueCreateInfo = {};
 			queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
@@ -203,7 +204,7 @@ private:
 
 			queueCreateInfo.pQueuePriorities = &queuePriority;
 			queueCreateInfos.push_back(queueCreateInfo);
-		}		
+		}
 
 		//3. 
 		//Create struct for logical device features
@@ -373,8 +374,13 @@ private:
 
 		bool extensionSupported = checkDeviceExtensionSupport(device_);
 
+		bool swapChainAdequate = false;
+		if (extensionSupported)	{
+			SwapChainSupportDetails swapChainSupport = querySwapChainSupport(device_);
+			swapChainAdequate = !swapChainSupport.formats.empty() && !swapChainSupport.formats.empty();
+		}
 
-		return indices.isComplete() && extensionSupported;
+		return indices.isComplete() && extensionSupported && swapChainAdequate;
 	}
 
 	struct QueueFamilyIndices {
@@ -419,7 +425,7 @@ private:
 	}
 
 	//////////////////////////////////////////////////////////////////////////////////////////////////////
-	//////////////////////////////  Functions to Support Presentation
+	//////////////////////////////  Functions to Support Presentation : createSurface()
 	bool checkDeviceExtensionSupport(VkPhysicalDevice device_)
 	{
 		uint32_t extensionCount;
@@ -437,6 +443,71 @@ private:
 		return requiredExtensions.empty();
 	}
 
+	struct SwapChainSupportDetails {
+		VkSurfaceCapabilitiesKHR capabilities;
+		std::vector<VkSurfaceFormatKHR> formats;
+		std::vector<VkPresentModeKHR> presentModes;
+	};
+
+	SwapChainSupportDetails querySwapChainSupport(VkPhysicalDevice device_) {
+		SwapChainSupportDetails details;
+		vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device_, m_vkSurface, &details.capabilities);
+
+		uint32_t formatCount;
+		vkGetPhysicalDeviceSurfaceFormatsKHR(device_, m_vkSurface, &formatCount, nullptr);
+
+		if (formatCount != 0)
+		{
+			details.formats.resize(formatCount);
+			vkGetPhysicalDeviceSurfaceFormatsKHR(device_, m_vkSurface, &formatCount, details.formats.data());
+		}
+
+		uint32_t presentModeCount;
+		vkGetPhysicalDeviceSurfacePresentModesKHR(device_, m_vkSurface, &formatCount, nullptr);
+
+		if (formatCount != 0) {
+			details.presentModes.resize(presentModeCount);
+			vkGetPhysicalDeviceSurfacePresentModesKHR(device_, m_vkSurface, &formatCount, details.presentModes.data());
+		}
+
+		return details;
+	}
+
+	VkSurfaceFormatKHR chooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats) {
+		for (const auto& availableFormat : availableFormats) {
+			if (availableFormat.format == VK_FORMAT_B8G8R8_UNORM
+				&& availableFormat.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
+				return availableFormat;
+			}
+		}
+
+		return availableFormats[0];
+	}
+
+	VkPresentModeKHR chooseSwapPresentMode(const std::vector<VkPresentModeKHR>& availablePresentModes) {
+		for (const auto& availableMode : availablePresentModes) {
+			if (availableMode == VK_PRESENT_MODE_MAILBOX_KHR) {
+				return availableMode;
+			}
+		}
+
+		return VK_PRESENT_MODE_FIFO_KHR;
+	}
+
+	VkExtent2D chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities) {
+		if (capabilities.currentExtent.width != UINT32_MAX) {
+			return capabilities.currentExtent;
+		}
+		else{
+			VkExtent2D actualExtent = { WIDTH, HEIGHT };
+
+			actualExtent.width = std::max(capabilities.minImageExtent.width, std::min(capabilities.maxImageExtent.width, actualExtent.width));
+			actualExtent.height = std::max(capabilities.minImageExtent.height, std::min(capabilities.maxImageExtent.height, actualExtent.height));
+
+			return actualExtent;
+		}
+	}
+
 	//Member Data
 	GLFWwindow* m_window;
 
@@ -445,7 +516,7 @@ private:
 	VkSurfaceKHR m_vkSurface;
 	VkPhysicalDevice m_vkPhysicalDevice = VK_NULL_HANDLE;
 	VkDevice m_vkLogicalDevice;
-	
+
 	VkQueue m_graphicsQueue;
 	VkQueue m_presentQueue;
 };
