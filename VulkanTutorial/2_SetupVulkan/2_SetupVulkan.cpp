@@ -1,5 +1,5 @@
-/////////////////////////////////Vulkan Tutorials
-/////////////////////////////////2. Setup Vulkan ( Vulkan Instance, Validation Layers for Debugging, Physical and Logical Device )
+/////////////////////////////////*****************************************************Vulkan Tutorials*****************************************
+/////////////////////////////////**************2. Setup Vulkan ( Vulkan Instance, Validation Layers for Debugging, Physical and Logical Device )
 
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
