@@ -341,8 +341,8 @@ private:
 		m_swapChainExtent = extent;
 	}
 
-	void createImageViews()
-	{
+	void createImageViews()	{
+		//Create Image views corresponding to swap chain images
 		m_swapChainImageViews.resize(m_swapChainImages.size());
 		for (size_t i = 0; i < m_swapChainImages.size(); i++) {
 			VkImageViewCreateInfo createInfo = {};
