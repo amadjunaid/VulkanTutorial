@@ -1,6 +1,6 @@
 /////////////////////////////////***********************************************************Vulkan Tutorials*****************************************
-/////////////////////////////////**************3. Graphics Pipeline 
-/////////////////////////////////      (Shader Stages, Fixed Functions states( input assembly, blending, rasterizer, viewport ), Pipeline Layout (Uniforms and push values), Render Pass )
+// *** 4. Graphics Pipeline 
+// *** (Shader Stages, Fixed Functions states( input assembly, blending, rasterizer, viewport ), Pipeline Layout (Uniforms and push values), Render Pass )
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 
@@ -106,6 +106,7 @@ private:
 		createImageViews();
 		createRenderPass();
 		createGraphicsPipeline();
+		createFramebuffers();
 	}
 
 	void mainLoop() {
@@ -118,6 +119,11 @@ private:
 	}
 
 	void cleanup() {
+		for (auto framebuffer : m_swapChainFramebuffers)
+		{
+			vkDestroyFramebuffer(m_vkLogicalDevice, framebuffer, nullptr);
+		}
+
 		vkDestroyPipeline(m_vkLogicalDevice, m_graphicsPipeline, nullptr);
 		vkDestroyPipelineLayout(m_vkLogicalDevice, m_pipelineLayout, nullptr);
 
@@ -529,7 +535,7 @@ private:
 		colorBlending.blendConstants[2] = 0.f;
 		colorBlending.blendConstants[3] = 0.f;
 
-		//8. The Pipeline
+		//8. The Graphics Pipeline
 
 		VkPipelineLayoutCreateInfo pipelineLayoutInfo = {};
 		pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
@@ -567,6 +573,30 @@ private:
 
 		vkDestroyShaderModule(m_vkLogicalDevice, fragShaderModule, nullptr);
 		vkDestroyShaderModule(m_vkLogicalDevice, vertShaderModule, nullptr);
+	}
+
+	void createFramebuffers()
+	{
+		m_swapChainFramebuffers.resize(m_swapChainImageViews.size());
+		for (size_t i = 0; i < m_swapChainImageViews.size(); i++)
+		{
+			VkImageView attachments[] = { m_swapChainImageViews[i] };
+
+			VkFramebufferCreateInfo framebufferInfo = {};
+			framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+			framebufferInfo.renderPass = m_renderPass;
+			framebufferInfo.attachmentCount = 1;
+			framebufferInfo.pAttachments = attachments;
+			framebufferInfo.width = m_swapChainExtent.width;
+			framebufferInfo.height = m_swapChainExtent.height;
+			framebufferInfo.layers = 1;
+
+			if (vkCreateFramebuffer(m_vkLogicalDevice, &framebufferInfo, nullptr, &m_swapChainFramebuffers[i]) != VK_SUCCESS)
+			{
+				throw std::runtime_error("failed to create Framebuffer");
+			}
+		}
+
 	}
 
 	//////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -855,6 +885,8 @@ private:
 	VkRenderPass m_renderPass;
 	VkPipelineLayout m_pipelineLayout = {};
 
+	//Members for Drawing
+	std::vector<VkFramebuffer> m_swapChainFramebuffers;
 };
 
 int main() {

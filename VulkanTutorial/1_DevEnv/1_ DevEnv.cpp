@@ -1,5 +1,5 @@
 /////////////////////////////////*****************************************************Vulkan Tutorials*****************************************
-/////////////////////////////////******1. Basic Dev Enviroment
+// *** 1. Basic Dev Enviroment
 //#define GLFW_INCLUDE_VULKAN
 #include <vulkan/vulkan.h>
 #include <GLFW/glfw3.h>

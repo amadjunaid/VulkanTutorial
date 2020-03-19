@@ -1,5 +1,6 @@
 /////////////////////////////////***********************************************************Vulkan Tutorials*****************************************
-/////////////////////////////////**************3. Setup Presentaion ( Window Surface, Swapchain configuration and creation and Image Views )
+// *** 3. Setup Presentaion 
+// *** ( Window Surface, Swapchain configuration and creation and Image Views )
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 
