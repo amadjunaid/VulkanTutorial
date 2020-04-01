@@ -1,6 +1,6 @@
 /////////////////////////////////***********************************************************Vulkan Tutorials*****************************************
-// *** 4. Graphics Pipeline 
-// *** (Shader Stages, Fixed Functions states( input assembly, blending, rasterizer, viewport ), Pipeline Layout (Uniforms and push values), Render Pass )
+// *** 5. Drawing 
+// *** (Prep Framebuffers, Command Buffers, command submission to queue for Rendering and Presentation, Synchronisation between frames and subpasses)
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 
@@ -17,6 +17,8 @@
 
 const int WIDTH = 800;
 const int HEIGHT = 600;
+
+const int MAX_FRAMES_IN_FLIGHT = 2;
 
 const std::vector<const char*> validationLayers = {
 	"VK_LAYER_KHRONOS_validation"
@@ -107,6 +109,9 @@ private:
 		createRenderPass();
 		createGraphicsPipeline();
 		createFramebuffers();
+		createCommandPool();
+		createCommandBuffers();
+		createSyncObjects();
 	}
 
 	void mainLoop() {
@@ -115,10 +120,23 @@ private:
 
 			//Poll input event
 			glfwPollEvents();
+
+			drawFrame();
 		}
+
+		vkDeviceWaitIdle(m_vkLogicalDevice);
 	}
 
 	void cleanup() {
+		for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
+		{
+			vkDestroySemaphore(m_vkLogicalDevice, m_renderFinishedSemaphores[i], nullptr);
+			vkDestroySemaphore(m_vkLogicalDevice, m_imageAvailableSemaphores[i], nullptr);
+			vkDestroyFence(m_vkLogicalDevice, m_inFLightFences[i], nullptr);
+		}
+
+
+		vkDestroyCommandPool(m_vkLogicalDevice, m_commandPool, nullptr);
 		for (auto framebuffer : m_swapChainFramebuffers)
 		{
 			vkDestroyFramebuffer(m_vkLogicalDevice, framebuffer, nullptr);
@@ -425,9 +443,22 @@ private:
 		renderPassInfo.subpassCount = 1;
 		renderPassInfo.pSubpasses = &subpass;
 
+		VkSubpassDependency dependency = {};
+		dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
+		dependency.dstSubpass = 0;
+		dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+		dependency.srcAccessMask = 0;
+		dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+		dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+		renderPassInfo.dependencyCount = 1;
+		renderPassInfo.pDependencies = &dependency;
+
+
 		if (vkCreateRenderPass(m_vkLogicalDevice, &renderPassInfo, nullptr, &m_renderPass) != VK_SUCCESS) {
 			throw std::runtime_error("failed to create render pass!");
 		}
+
+
 	}
 
 	void createGraphicsPipeline() {
@@ -594,6 +625,98 @@ private:
 			if (vkCreateFramebuffer(m_vkLogicalDevice, &framebufferInfo, nullptr, &m_swapChainFramebuffers[i]) != VK_SUCCESS)
 			{
 				throw std::runtime_error("failed to create Framebuffer");
+			}
+		}
+
+	}
+
+	void createCommandPool()
+	{
+		QueueFamilyIndices queueFamilyIndices = findQueueFamilies(m_vkPhysicalDevice);
+
+		VkCommandPoolCreateInfo poolInfo = {};
+		poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+		poolInfo.queueFamilyIndex = queueFamilyIndices.graphicsFamily.value();
+		poolInfo.flags = 0;
+
+		if (vkCreateCommandPool(m_vkLogicalDevice, &poolInfo, nullptr, &m_commandPool) != VK_SUCCESS)
+		{
+			throw std::runtime_error("failed to create command pool!");
+		}
+	}
+
+	void createCommandBuffers()
+	{
+		m_commandBuffers.resize(m_swapChainFramebuffers.size());
+
+		VkCommandBufferAllocateInfo allocInfo = {};
+		allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+		allocInfo.commandPool = m_commandPool;
+		allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+		allocInfo.commandBufferCount = (uint32_t)m_commandBuffers.size();
+
+		if (vkAllocateCommandBuffers(m_vkLogicalDevice, &allocInfo, m_commandBuffers.data()) != VK_SUCCESS) {
+			throw std::runtime_error("failed to allocate command buffers!");
+		}
+
+		for (size_t i = 0; i < m_commandBuffers.size(); i++) {
+			VkCommandBufferBeginInfo beginInfo = {};
+			beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+			beginInfo.flags = 0;
+			beginInfo.pInheritanceInfo = nullptr;
+
+			if (vkBeginCommandBuffer(m_commandBuffers[i], &beginInfo) != VK_SUCCESS)
+			{
+				throw std::runtime_error("failed to begin recording command buffer!");
+			}
+
+			VkRenderPassBeginInfo renderPassInfo = {};
+			renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+			renderPassInfo.renderPass = m_renderPass;
+			renderPassInfo.framebuffer = m_swapChainFramebuffers[i];
+			renderPassInfo.renderArea.offset = { 0,0 };
+			renderPassInfo.renderArea.extent = m_swapChainExtent;
+
+			VkClearValue clearColor = { 0.f, 0.f, 0.f, 1.f };
+			renderPassInfo.clearValueCount = 1;
+			renderPassInfo.pClearValues = &clearColor;
+
+			vkCmdBeginRenderPass(m_commandBuffers[i], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+
+			vkCmdBindPipeline(m_commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, m_graphicsPipeline);
+			vkCmdDraw(m_commandBuffers[i], 3, 1, 0, 0);
+
+			vkCmdEndRenderPass(m_commandBuffers[i]);
+
+			if (vkEndCommandBuffer(m_commandBuffers[i]) != VK_SUCCESS) {
+				throw std::runtime_error("failed to recrod command buffer!");
+			}
+		}
+
+	}
+
+	void createSyncObjects()
+	{
+		m_imageAvailableSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
+		m_renderFinishedSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
+		m_inFLightFences.resize(MAX_FRAMES_IN_FLIGHT);
+		m_imagesInFlight.resize(m_swapChainImages.size(), VK_NULL_HANDLE);
+
+		VkSemaphoreCreateInfo semaphoreInfo = {};
+		semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+
+		VkFenceCreateInfo fenceInfo = {};
+		fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+		fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+
+		for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
+		{
+			if (vkCreateSemaphore(m_vkLogicalDevice, &semaphoreInfo, nullptr, &m_imageAvailableSemaphores[i]) != VK_SUCCESS
+				|| vkCreateSemaphore(m_vkLogicalDevice, &semaphoreInfo, nullptr, &m_renderFinishedSemaphores[i]) != VK_SUCCESS
+				|| vkCreateFence(m_vkLogicalDevice, &fenceInfo, nullptr, &m_inFLightFences[i]) != VK_SUCCESS
+				)
+			{
+				throw std::runtime_error("failed to create semaphores!");
 			}
 		}
 
@@ -861,6 +984,61 @@ private:
 		return shaderModule;
 	}
 
+	//////////////////////////////////////////////////////////////////////////////////////////////////////
+	//////////////////////////////  Functions to Support Drawing and Presentation : mainLoop()
+	void drawFrame()
+	{
+		//0. Wait for previous frame
+		vkWaitForFences(m_vkLogicalDevice, 1, &m_inFLightFences[m_currentFrame], VK_TRUE, UINT64_MAX);
+
+		//1. Retrieve an image from the Swap Chain
+		uint32_t imageIndex;
+		vkAcquireNextImageKHR(m_vkLogicalDevice, m_swapChain, UINT64_MAX, m_imageAvailableSemaphores[m_currentFrame], VK_NULL_HANDLE, &imageIndex);
+		if (m_imagesInFlight[imageIndex] != VK_NULL_HANDLE) {
+			vkWaitForFences(m_vkLogicalDevice, 1, &m_imagesInFlight[imageIndex], VK_TRUE, UINT64_MAX);
+		}
+
+		m_imagesInFlight[imageIndex] = m_inFLightFences[m_currentFrame];
+
+		//2. Submit to the graphics Queue for rendering
+		VkSubmitInfo submitInfo = {};
+		submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+
+		VkSemaphore waitSemaphores[] = { m_imageAvailableSemaphores[m_currentFrame] };
+		VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
+		submitInfo.waitSemaphoreCount = 1;
+		submitInfo.pWaitSemaphores = waitSemaphores;
+		submitInfo.pWaitDstStageMask = waitStages;
+		submitInfo.commandBufferCount = 1;
+		submitInfo.pCommandBuffers = &m_commandBuffers[imageIndex];
+		VkSemaphore signalSemaphores[] = { m_renderFinishedSemaphores[m_currentFrame] };
+		submitInfo.signalSemaphoreCount = 1;
+		submitInfo.pSignalSemaphores = signalSemaphores;
+
+		vkResetFences(m_vkLogicalDevice, 1, &m_inFLightFences[m_currentFrame]);
+
+		if (vkQueueSubmit(m_graphicsQueue, 1, &submitInfo, m_inFLightFences[m_currentFrame]) != VK_SUCCESS)
+		{
+			throw std::runtime_error("fialed to submit draw command buffer!");
+		}
+
+		//3. Use present Queue to draw on surface (use semaphores to wait for graphics queue)
+		VkPresentInfoKHR presentInfo = {};
+		presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+		presentInfo.waitSemaphoreCount = 1;
+		presentInfo.pWaitSemaphores = signalSemaphores;
+		VkSwapchainKHR swapChains[] = { m_swapChain };
+		presentInfo.swapchainCount = 1;
+		presentInfo.pSwapchains = swapChains;
+		presentInfo.pImageIndices = &imageIndex;
+		presentInfo.pResults = nullptr;
+
+		vkQueuePresentKHR(m_presentQueue, &presentInfo);
+
+		m_currentFrame = (m_currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
+		//vkQueueWaitIdle(m_presentQueue);
+	}
+
 	//Member Data
 	GLFWwindow* m_window;
 
@@ -887,11 +1065,15 @@ private:
 	std::vector<VkFramebuffer> m_swapChainFramebuffers;
 
 	//Members for Drawing
+	VkCommandPool m_commandPool;
+	std::vector<VkCommandBuffer> m_commandBuffers;
 
-
-
-
-
+	//Members for Presentation
+	size_t m_currentFrame = 0;
+	std::vector<VkSemaphore> m_imageAvailableSemaphores;
+	std::vector<VkSemaphore> m_renderFinishedSemaphores;
+	std::vector<VkFence> m_inFLightFences;
+	std::vector<VkFence> m_imagesInFlight;
 };
 
 int main() {
